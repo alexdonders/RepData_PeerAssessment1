@@ -7,19 +7,86 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r}
+if(!require(tidyverse)){
+    install.packages("tidyverse")
+    library(tidyverse)
+}
+df = read.csv(unz('activity.zip','activity.csv'))
+```
 
 
 
 ## What is mean total number of steps taken per day?
 
 
+```{r}
+df_daily = df %>% group_by(date) %>% summarize(daily_steps = sum(steps))
+hist(df_daily$daily_steps, main = "Total Daily Steps", xlab = "Total daily steps", ylab = "Frequency", breaks = 10)
+```
+
+```{r}
+step_moments = df_daily %>% summarize(mean_daily_steps = mean(daily_steps, na.rm = TRUE), median_daily_steps = median(daily_steps, na.rm = TRUE))
+step_moments
+```
+
 
 ## What is the average daily activity pattern?
+```{r}
+df_interval = df %>% group_by(interval) %>% summarize(mean_steps = mean(steps, na.rm = TRUE))
 
+plot(df_interval$interval, df_interval$mean_steps, type = 'l', main = "Average number of steps by interval", xlab = "Interval", ylab = "Average number of steps")
+```
 
+```{r}
+df_interval[which.max(df_interval$mean_steps), ]$interval
+```
 
 ## Imputing missing values
+```{r}
+sum(is.na(df$steps))
+```
+
+```{r}
+imputations = df_interval$mean_steps[match(df$interval, df_interval$interval)]
+df_imputed = transform(df, steps = ifelse(is.na(df$steps), yes = imputations, no = df$steps))
+```
+
+```{r}
+df_daily_imputed = df_imputed %>% group_by(date) %>% summarize(daily_steps = sum(steps))
+hist(df_daily_imputed$daily_steps, main = "Total Daily Steps", xlab = "Total daily steps", ylab = "Frequency", breaks = 10)
+```
+
+```{r}
+step_moments_imputed = df_daily_imputed %>% summarize(mean_daily_steps = mean(daily_steps, na.rm = TRUE), median_daily_steps = median(daily_steps, na.rm = TRUE))
+step_moments_imputed
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+df_imputed$date = as.Date(strptime(df_imputed$date, format="%Y-%m-%d"))
+df_imputed$day = sapply(df_imputed$date, function(x) {
+        if (weekdays(x) == "Saturday" | weekdays(x) =="Sunday") 
+          {y = "Weekend"} 
+        else 
+          {y = "Weekday"}
+        y
+        })
+```
+
+
+```{r}
+df_daily = df_imputed %>% group_by(date) %>% summarize(mean_steps = mean(steps))
+plot = ggplot(df_daily, aes(x = interval, y = mean_steps, color = day)) +
+       geom_line() +
+       labs(title = "Average daily steps by day category", x = "Interval", y = "Average number of steps") +
+       facet_wrap( ~ day, ncol = 1, nrow = 2)
+print(plot)
+```
+
+
+
+
+
